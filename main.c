@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 
 #define MAX_CMDS 16
 #define SEP      "---"

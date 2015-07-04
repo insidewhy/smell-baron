@@ -1,6 +1,6 @@
 .PHONY: debug release
 
-flags = -Wall
+flags = -Wall -std=c99
 
 debug: smell-baron.debug
 release: smell-baron
