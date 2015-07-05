@@ -86,6 +86,7 @@ static void perror_die(char *msg) {
 static void install_signal_handlers() {
   struct sigaction sa;
   sa.sa_handler = on_signal;
+  sa.sa_flags = 0;
   sigemptyset(&sa.sa_mask);
 
   if (sigaction(SIGINT, &sa, NULL))
