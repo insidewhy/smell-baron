@@ -14,7 +14,7 @@ Instead just use `smell-baron`:
 
     ```
     wget https://github.com/ohjames/smell-baron/releases/download/v0.1.0/smell-baron
-    chmod a+x lovely_touching
+    chmod a+x smell-baron
     ```
 
 2. Change your `Dockerfile` to this:
