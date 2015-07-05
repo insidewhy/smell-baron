@@ -85,19 +85,7 @@ static void on_signal(int signum) {
   // probably not safe... at least it's only in debug mode ;)
   fprintf(stderr, "got signal %d\n", signum);
 #endif
-  alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   running = 0;
-
-  struct sigaction sa;
-  sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
-  sigemptyset(&sa.sa_mask);
-  if (sigaction(SIGINT, &sa, NULL))
-    return;
-  if (sigaction(SIGTERM, &sa, NULL))
-    return;
-
-  kill(0, SIGTERM);
 }
 
 static void on_alarm(int signum) {
@@ -113,7 +101,7 @@ static void perror_die(char *msg) {
   exit(1);
 }
 
-static void install_signal_handlers() {
+static void install_term_and_int_handlers() {
   struct sigaction sa;
   sa.sa_handler = on_signal;
   sa.sa_flags = 0;
@@ -130,13 +118,24 @@ static void install_signal_handlers() {
     perror_die("could not catch SIGALRM");
 }
 
+static void remove_term_and_int_handlers() {
+  struct sigaction sa;
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  sigemptyset(&sa.sa_mask);
+  if (sigaction(SIGINT, &sa, NULL))
+    return;
+  if (sigaction(SIGTERM, &sa, NULL))
+    return;
+}
+
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     fprintf(stderr, "please supply at least one command to run\n");
     return 1;
   }
 
-  install_signal_handlers();
+  install_term_and_int_handlers();
 
   pid_t cmds[MAX_CMDS];
   int n_cmds = 0;
@@ -158,7 +157,11 @@ int main(int argc, char *argv[]) {
   }
 
   wait_for_requested_commands_to_exit(n_cmds, cmds);
+  remove_term_and_int_handlers();
+  alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
+  kill(0, SIGTERM);
   wait_for_all_processes_to_exit();
+
 # ifndef NDEBUG
   fprintf(stderr, "all processes exited cleanly\n");
 # endif
