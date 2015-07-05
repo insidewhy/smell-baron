@@ -8,9 +8,7 @@
 #define MAX_CMDS 16
 #define SEP      "---"
 
-typedef pid_t pids_t[MAX_CMDS];
-
-void wait_for_exit(int n_cmds, pids_t *pids) {
+static void wait_for_exit(int n_cmds, pid_t *pids) {
   int cmds_left = n_cmds;
 
   for (;;) {
@@ -25,7 +23,7 @@ void wait_for_exit(int n_cmds, pids_t *pids) {
 
     // check for pid in list of child pids
     for (int i = 0; i < n_cmds; ++i) {
-      if ((*pids)[i] == waited_pid) {
+      if (pids[i] == waited_pid) {
 #       ifndef NDEBUG
         fprintf(stderr, "process exit: %d in command list, %d left\n", waited_pid, cmds_left - 1);
 #       endif
@@ -43,7 +41,7 @@ void wait_for_exit(int n_cmds, pids_t *pids) {
   }
 }
 
-pid_t run_proc(char **argv) {
+static pid_t run_proc(char **argv) {
   pid_t pid = fork();
   if (pid != 0)
     return pid;
@@ -59,7 +57,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  pids_t cmds;
+  pid_t cmds[MAX_CMDS];
   int n_cmds = 0;
 
   {
@@ -74,11 +72,11 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    if (cmd_begin != cmd_end)
+    if (cmd_begin < cmd_end)
       cmds[n_cmds++] = run_proc(cmd_begin);
   }
 
-  wait_for_exit(n_cmds, &cmds);
+  wait_for_exit(n_cmds, cmds);
 # ifndef NDEBUG
   fprintf(stderr, "all processes exited\n");
 # endif
