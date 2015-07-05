@@ -11,23 +11,23 @@
 #define MAX_CMDS 16
 #define SEP      "---"
 
+// TODO: sig_atomic_t (although it is typedefd to int :P)
 // used as boolean by signal handlers to tell process it should exit
-static int running = 1;
+static volatile int running = 1;
 
 static void wait_for_exit(int n_cmds, pid_t *pids) {
   int cmds_left = n_cmds;
 
   for (;;) {
     int status;
+
+    if (! running) return;
     pid_t waited_pid = waitpid(-1, &status, 0);
     if (waited_pid == -1) {
       if (errno == EINTR) {
 #       ifndef NDEBUG
         fprintf(stderr, "waitpid interrupted by signal\n");
 #       endif
-
-        if (! running)
-          return;
       }
       else {
 #       ifndef NDEBUG
@@ -35,6 +35,7 @@ static void wait_for_exit(int n_cmds, pid_t *pids) {
 #       endif
       }
     }
+    if (! running) return;
 
     // check for pid in list of child pids
     for (int i = 0; i < n_cmds; ++i) {
