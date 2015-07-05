@@ -63,16 +63,13 @@ int main(int argc, char *argv[]) {
   int n_cmds = 0;
 
   {
-    char *tmp_str;
     char **cmd_begin = argv + 1;
     char **cmd_end = argv + argc;
 
     for (char **arg_it = cmd_begin; arg_it < cmd_end; ++arg_it) {
       if (! strcmp(*arg_it, SEP)) {
-        tmp_str = *arg_it;
-        *arg_it = 0;
+        *arg_it = 0; // replace with null to terminate when passed to execvp
         cmds[n_cmds++] = run_proc(cmd_begin);
-        *arg_it = tmp_str;
         cmd_begin = arg_it + 1;
       }
     }

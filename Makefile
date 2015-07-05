@@ -10,3 +10,6 @@ smell-baron.debug: main.c
 
 smell-baron: main.c
 	gcc ${flags} -DNDEBUG -O3 $^ -o $@
+
+clean:
+	rm -f smell-baron smell-baron.debug smell-baron.release
