@@ -37,7 +37,7 @@ Or to build a copy against Centos5's glibc (so it can run on more machines) firs
 ./build-release.sh
 ```
 
-You can also get prebuilt binaries from github (but don't trust me, build it yourself):
+You can also get a prebuilt binary from github (but don't trust me, build it yourself):
 
 ```
 wget https://github.com/ohjames/smell-baron/releases/download/v0.1.0/smell-baron
