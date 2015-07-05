@@ -64,7 +64,6 @@ static void wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
 
 static void wait_for_all_processes_to_exit() {
   int status;
-  if (! running) return;
   for (;;) {
     if (waitpid(-1, &status, 0) == -1 && errno == ECHILD)
       return;
