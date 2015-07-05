@@ -8,6 +8,7 @@
 #include <string.h>
 #include <signal.h>
 
+#define WAIT_FOR_PROC_DEATH_TIMEOUT 10
 #define MAX_CMDS 16
 #define SEP      "---"
 
@@ -15,7 +16,7 @@
 // used as boolean by signal handlers to tell process it should exit
 static volatile int running = 1;
 
-static void wait_for_exit(int n_cmds, pid_t *pids) {
+static void wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
   int cmds_left = n_cmds;
 
   for (;;) {
@@ -61,6 +62,15 @@ static void wait_for_exit(int n_cmds, pid_t *pids) {
   }
 }
 
+static void wait_for_all_processes_to_exit() {
+  int status;
+  if (! running) return;
+  for (;;) {
+    if (waitpid(-1, &status, 0) == -1 && errno == ECHILD)
+      return;
+  }
+}
+
 static pid_t run_proc(char **argv) {
   pid_t pid = fork();
   if (pid != 0)
@@ -76,7 +86,27 @@ static void on_signal(int signum) {
   // probably not safe... at least it's only in debug mode ;)
   fprintf(stderr, "got signal %d\n", signum);
 #endif
+  alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   running = 0;
+
+  struct sigaction sa;
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  sigemptyset(&sa.sa_mask);
+  if (sigaction(SIGINT, &sa, NULL))
+    return;
+  if (sigaction(SIGTERM, &sa, NULL))
+    return;
+
+  kill(0, SIGTERM);
+}
+
+static void on_alarm(int signum) {
+# ifndef NDEBUG
+  // probably not safe... at least it's only in debug mode ;)
+  fprintf(stderr, "timeout waiting for child processes to die\n");
+#endif
+  exit(0);
 }
 
 static void perror_die(char *msg) {
@@ -95,6 +125,10 @@ static void install_signal_handlers() {
 
   if (sigaction(SIGTERM, &sa, NULL))
     perror_die("could not catch SIGTERM");
+
+  sa.sa_handler = on_alarm;
+  if (sigaction(SIGALRM, &sa, NULL))
+    perror_die("could not catch SIGALRM");
 }
 
 int main(int argc, char *argv[]) {
@@ -124,7 +158,10 @@ int main(int argc, char *argv[]) {
       cmds[n_cmds++] = run_proc(cmd_begin);
   }
 
-  wait_for_exit(n_cmds, cmds);
-
+  wait_for_requested_commands_to_exit(n_cmds, cmds);
+  wait_for_all_processes_to_exit();
+# ifndef NDEBUG
+  fprintf(stderr, "all processes exited cleanly\n");
+# endif
   return 0;
 }
