@@ -21,7 +21,7 @@ Instead just use `smell-baron`:
 
     ```
     ADD smell-baron /bin/smell-baron
-    CMD ["/bin/smell-baron", "--", "/bin/node", "app.js" ]
+    CMD ["/bin/smell-baron", "/bin/node", "app.js" ]
     ```
 
 Now you don't have to worry anymore!
@@ -51,5 +51,5 @@ Or to build a copy against Centos5's glibc (so it can run on more machines) firs
 If you want to run multiple processes you can separate them with the argument `---`:
 ```
 ADD smell-baron /bin/smell-baron
-CMD ["/bin/smell-baron", "--", "/bin/runit", "---", "/bin/node", "app.js" ]
+CMD ["/bin/smell-baron", "/bin/runit", "---", "/bin/node", "app.js" ]
 ```
