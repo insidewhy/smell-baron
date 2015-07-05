@@ -8,21 +8,12 @@ CMD ["/bin/node", "app.js"]
 
 Oh no [this is no good!](https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/) - TLDR: Your process can get shutdown in a bad way and *zombie processes* will eat your container!
 
-Instead just use `smell-baron`:
+Instead just use `smell-baron` and change your `Dockerfile` to:
 
-1. Download it (this binary will work on any Linux version from Centos-5/Redhat-5 and up):
-
-    ```
-    wget https://github.com/ohjames/smell-baron/releases/download/v0.1.0/smell-baron
-    chmod a+x smell-baron
-    ```
-
-2. Change your `Dockerfile` to this:
-
-    ```
-    ADD smell-baron /bin/smell-baron
-    CMD ["/bin/smell-baron", "/bin/node", "app.js" ]
-    ```
+```
+ADD smell-baron /bin/smell-baron
+CMD ["/bin/smell-baron", "/bin/node", "app.js" ]
+```
 
 Now you don't have to worry anymore!
 
@@ -44,6 +35,13 @@ Or to build a copy against Centos5's glibc (so it can run on more machines) firs
 
 ```
 ./build-release.sh
+```
+
+You can also get prebuilt binaries from github (but don't trust me, build it yourself):
+
+```
+wget https://github.com/ohjames/smell-baron/releases/download/v0.1.0/smell-baron
+chmod a+x smell-baron
 ```
 
 ## More stuff
