@@ -12,7 +12,7 @@ Instead just use `smell-baron` and change your `Dockerfile` to:
 
 ```
 ADD smell-baron /bin/smell-baron
-ENTRYPOINT "/bin/smell-baron"
+ENTRYPOINT ["/bin/smell-baron"]
 CMD ["/bin/node", "app.js" ]
 ```
 
@@ -50,6 +50,6 @@ chmod a+x smell-baron
 If you want to run multiple processes you can separate them with the argument `---`:
 ```
 ADD smell-baron /bin/smell-baron
-ENTRYPOINT "/bin/smell-baron"
+ENTRYPOINT ["/bin/smell-baron"]
 CMD ["/bin/runit", "---", "/bin/node", "app.js" ]
 ```
