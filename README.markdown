@@ -32,10 +32,14 @@ To build a debug version:
 make
 ```
 
-Or to build a copy against Centos5's glibc (so it can run on more machines) first install docker, then run this as a user with access to docker:
-
+Or to build a copy against Centos5's `glibc` (so it can run on more machines) first install docker, then run this as a user with access to docker:
 ```
 ./build-release.sh
+```
+
+It can also be build on alpine to link against `musl` rather than `glibc`:
+```
+./build-release.sh alpine
 ```
 
 You can also get a prebuilt binary from github (but don't trust me, build it yourself):
