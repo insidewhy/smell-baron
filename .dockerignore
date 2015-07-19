@@ -1,5 +1,5 @@
 smell-baron*
-Dockerfile
+Dockerfile*
 build-release.sh
 alpine
 README.markdown
