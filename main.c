@@ -7,22 +7,26 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <limits.h>
 
 #define WAIT_FOR_PROC_DEATH_TIMEOUT 10
 #define MAX_CMDS 16
 #define SEP      "---"
 
+
 // TODO: sig_atomic_t (although it is typedefd to int :P)
 // used as boolean by signal handlers to tell process it should exit
 static volatile int running = 1;
 
-static void wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
+static int wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
   int cmds_left = n_cmds;
+  int error_code = 0;
+  int error_code_idx = INT_MAX;
 
   for (;;) {
     int status;
 
-    if (! running) return;
+    if (! running) return error_code;
     pid_t waited_pid = waitpid(-1, &status, 0);
     if (waited_pid == -1) {
       if (errno == EINTR) {
@@ -36,11 +40,23 @@ static void wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
 #       endif
       }
     }
-    if (! running) return;
+    if (! running) return error_code;
 
     // check for pid in list of child pids
     for (int i = 0; i < n_cmds; ++i) {
+
       if (pids[i] == waited_pid) {
+        if (WIFEXITED(status)) {
+          int exit_status = WEXITSTATUS(status);
+#         ifndef NDEBUG
+          fprintf(stderr, "process exit with status: %d \n", exit_status);
+#         endif
+          if (exit_status != 0 && i < error_code_idx) {
+            error_code = exit_status;
+            error_code_idx = i;
+          }
+        }
+
 #       ifndef NDEBUG
         fprintf(stderr, "process exit: %d in command list, %d left\n", waited_pid, cmds_left - 1);
 #       endif
@@ -49,7 +65,7 @@ static void wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
 #         ifndef NDEBUG
           fprintf(stderr, "all processes exited\n");
 #         endif
-          return;
+          return error_code;
         }
         break;
       }
@@ -60,6 +76,8 @@ static void wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
 #     endif
     }
   }
+
+  return error_code;
 }
 
 static void wait_for_all_processes_to_exit() {
@@ -156,7 +174,7 @@ int main(int argc, char *argv[]) {
       cmds[n_cmds++] = run_proc(cmd_begin);
   }
 
-  wait_for_requested_commands_to_exit(n_cmds, cmds);
+  int error_code = wait_for_requested_commands_to_exit(n_cmds, cmds);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   kill(0, SIGTERM);
@@ -165,5 +183,5 @@ int main(int argc, char *argv[]) {
 # ifndef NDEBUG
   fprintf(stderr, "all processes exited cleanly\n");
 # endif
-  return 0;
+  return error_code;
 }
