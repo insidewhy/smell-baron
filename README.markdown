@@ -45,7 +45,7 @@ It can also be build on alpine to link against `musl` rather than `glibc`:
 You can also get a prebuilt binary from github (but don't trust me, build it yourself):
 
 ```
-wget https://github.com/ohjames/smell-baron/releases/download/v0.1.0/smell-baron
+wget https://github.com/ohjames/smell-baron/releases/download/v0.2.0/smell-baron
 chmod a+x smell-baron
 ```
 
