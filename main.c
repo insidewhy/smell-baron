@@ -157,21 +157,42 @@ int main(int argc, char *argv[]) {
 
   pid_t cmds[MAX_CMDS];
   int n_cmds = 0;
-
   {
-    char **cmd_begin = argv + 1;
     char **cmd_end = argv + argc;
+    char **arg_it = argv + 1;
 
-    for (char **arg_it = cmd_begin; arg_it < cmd_end; ++arg_it) {
+    int wait_on_command = 1;
+    int wait_on_all_commands = 1;
+
+    // TODO: parse more commands, including -h/--help with getopt
+    if (! strcmp(*arg_it, "-f")) {
+      ++arg_it;
+      wait_on_all_commands = 0;
+    }
+
+    char **cmd_begin = arg_it;
+
+    for (; arg_it < cmd_end; ++arg_it) {
       if (! strcmp(*arg_it, SEP)) {
         *arg_it = 0; // replace with null to terminate when passed to execvp
-        cmds[n_cmds++] = run_proc(cmd_begin);
+        if (wait_on_command)
+          cmds[n_cmds++] = run_proc(cmd_begin);
+        else
+          run_proc(cmd_begin);
+
         cmd_begin = arg_it + 1;
+        wait_on_command = wait_on_all_commands;
       }
     }
 
-    if (cmd_begin < cmd_end)
-      cmds[n_cmds++] = run_proc(cmd_begin);
+    if (cmd_begin < cmd_end) {
+      if (wait_on_command)
+        cmds[n_cmds++] = run_proc(cmd_begin);
+      else
+        run_proc(cmd_begin);
+
+      wait_on_command = wait_on_all_commands;
+    }
   }
 
   int error_code = wait_for_requested_commands_to_exit(n_cmds, cmds);

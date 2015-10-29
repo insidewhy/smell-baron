@@ -45,7 +45,7 @@ It can also be build on alpine to link against `musl` rather than `glibc`:
 You can also get a prebuilt binary from github (but don't trust me, build it yourself):
 
 ```
-wget https://github.com/ohjames/smell-baron/releases/download/v0.2.0/smell-baron
+wget https://github.com/ohjames/smell-baron/releases/download/v0.3.0/smell-baron
 chmod a+x smell-baron
 ```
 
@@ -57,3 +57,13 @@ ADD smell-baron /bin/smell-baron
 ENTRYPOINT ["/bin/smell-baron"]
 CMD ["/bin/runit", "---", "/bin/node", "app.js" ]
 ```
+
+`smell-baron` will wait for every process to exit before sending a `SIGTERM` to the remaining (reaped) processes. It will exit when all child processes exit.
+
+This behaviour can be altered with the `-f` command-line argument:
+
+```
+smell-baron -f sleep 1 --- sleep 2
+```
+
+When `-f` is used then the remaining processes will be killed with `SIGTERM` after the process specified first exits. In the above example `sleep 2` would be killed after one second.
