@@ -80,8 +80,10 @@ static int wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
   return error_code;
 }
 
-static void wait_for_all_processes_to_exit() {
+static int alarm_exit_code = 0;
+static void wait_for_all_processes_to_exit(int error_code) {
   int status;
+  alarm_exit_code = error_code;
   for (;;) {
     if (waitpid(-1, &status, 0) == -1 && errno == ECHILD)
       return;
@@ -111,7 +113,7 @@ static void on_alarm(int signum) {
   // probably not safe... at least it's only in debug mode ;)
   fprintf(stderr, "timeout waiting for child processes to die\n");
 #endif
-  exit(0);
+  exit(alarm_exit_code);
 }
 
 static void perror_die(char *msg) {
@@ -199,7 +201,7 @@ int main(int argc, char *argv[]) {
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   kill(0, SIGTERM);
-  wait_for_all_processes_to_exit();
+  wait_for_all_processes_to_exit(error_code);
 
 # ifndef NDEBUG
   fprintf(stderr, "all processes exited cleanly\n");
