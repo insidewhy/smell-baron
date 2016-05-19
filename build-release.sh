@@ -1,21 +1,24 @@
 #!/bin/sh
+DIR=`dirname $(readlink -f $0)`
 
 version=${1:-centos5}
+BNAME="$version-smell-baron-$RANDOM"
 
 case $version in
   centos5|centos)
-    ln -sf Dockerfile.centos5 Dockerfile
-    docker build -t centos5-smell-baron . || exit 1
-    docker run centos5-smell-baron true || exit 1
-    docker cp $(docker ps -aq | head -n1):/smell-baron/smell-baron .
+    docker build -t $BNAME -f Dockerfile.centos5 $DIR/ || exit 1
     ;;
   alpine)
-    ln -sf Dockerfile.alpine Dockerfile
-    docker build -t alpine-smell-baron . || exit 1
-    docker run alpine-smell-baron true || exit 1
-    docker cp $(docker ps -aq | head -n1):/smell-baron/smell-baron .
+    docker build -t $BNAME -f Dockerfile.alpine $DIR/ || exit 1
+    ;;
+  debian)
+    docker build -t $BNAME -f Dockerfile.debian $DIR/ || exit 1
     ;;
   *)
     echo "version unsupported, try alpine or centos5"
+    exit 1
     ;;
 esac
+
+docker run --rm $BNAME cat /smell-baron/smell-baron  > $DIR/smell-baron && chmod +x $DIR/smell-baron || exit 1
+docker rmi $BNAME
