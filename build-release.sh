@@ -10,6 +10,9 @@ case $version in
   alpine)
     docker build -t buildable-smell-baron -f Dockerfile.alpine $DIR/ || exit 1
     ;;
+  debian)
+    docker build -t buildable-smell-baron -f Dockerfile.debian $DIR/ || exit 1
+    ;;
   *)
     echo "version unsupported, try alpine or centos5"
     exit 1
