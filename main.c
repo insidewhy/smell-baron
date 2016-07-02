@@ -158,6 +158,7 @@ int main(int argc, char *argv[]) {
   install_term_and_int_handlers();
 
   pid_t cmds[MAX_CMDS];
+  int signal_everything = 0;
   int n_cmds = 0;
   {
     char **cmd_end = argv + argc;
@@ -166,10 +167,13 @@ int main(int argc, char *argv[]) {
     int wait_on_command = 1;
     int wait_on_all_commands = 1;
 
-    // TODO: parse more commands, including -h/--help with getopt
-    if (! strcmp(*arg_it, "-f")) {
-      ++arg_it;
-      wait_on_all_commands = 0;
+    for (; arg_it < cmd_end; ++arg_it) {
+      if (! strcmp(*arg_it, "-a"))
+        signal_everything = 1;
+      else if (! strcmp(*arg_it, "-f"))
+        wait_on_all_commands = 0;
+      else
+        break;
     }
 
     char **cmd_begin = arg_it;
@@ -200,7 +204,7 @@ int main(int argc, char *argv[]) {
   int error_code = wait_for_requested_commands_to_exit(n_cmds, cmds);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
-  kill(0, SIGTERM);
+  kill(signal_everything ? -1 : 0, SIGTERM);
   wait_for_all_processes_to_exit(error_code);
 
 # ifndef NDEBUG

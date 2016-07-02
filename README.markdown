@@ -49,7 +49,7 @@ wget https://github.com/ohjames/smell-baron/releases/download/v0.3.0/smell-baron
 chmod a+x smell-baron
 ```
 
-## More stuff
+## Running more than one process
 
 If you want to run multiple processes you can separate them with the argument `---`:
 ```
@@ -60,6 +60,8 @@ CMD ["/bin/runit", "---", "/bin/node", "app.js" ]
 
 `smell-baron` will wait for every process to exit before sending a `SIGTERM` to the remaining (reaped) processes. It will exit when all child processes exit.
 
+## Waiting for processes to exit
+
 This behaviour can be altered with the `-f` command-line argument:
 
 ```
@@ -67,3 +69,7 @@ smell-baron -f sleep 1 --- sleep 2
 ```
 
 When `-f` is used then the remaining processes will be killed with `SIGTERM` after the process specified first exits. In the above example `sleep 2` would be killed after one second.
+
+## Cleaning up
+
+After `smell-baron`'s supervised processes have exited it uses `kill(0, SIGTERM)` to kill remaining processes. This sends a kill signal to every process in the same process group. Some processes create processes in new process groups and then fail to terminate them when they are killed. The `-a` flag can be used to kill all reachable processes (by using `kill(1, SIGTERM)`). It is not advisable to use this outside of a container.
