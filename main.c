@@ -148,29 +148,24 @@ static void remove_term_and_int_handlers() {
     return;
 }
 
-typedef struct _CmdList {
+typedef struct {
   /* args that form command, sent to execvp */
   char **args;
 
   /* 1 to watch, 0 to just run the command: see -f */
   int watch;
+} Cmd;
 
-  /* next command or null */
-  struct _CmdList *next;
-} CmdList;
-
-static void run_cmds(CmdList *cmds, pid_t *watch_pids) {
+static void run_cmds(int n_cmds, Cmd *cmds, pid_t *watch_pids) {
   int cmd_it = 0;
-  for (; cmds; cmds = cmds->next) {
-    if (cmds->watch)
-      watch_pids[cmd_it++] = run_proc(cmds->args);
+  for (int i = 0; i < n_cmds; ++i) {
+    if (cmds[i].watch)
+      watch_pids[cmd_it++] = run_proc(cmds[i].args);
     else
-      run_proc(cmds->args);
+      run_proc(cmds[i].args);
   }
 }
 
-
-#define MEMCPY_LIT(var, type, ...) memcpy(var, &(type) __VA_ARGS__, sizeof(type))
 
 int main(int argc, char *argv[]) {
   if (argc == 1) {
@@ -181,9 +176,9 @@ int main(int argc, char *argv[]) {
   install_term_and_int_handlers();
 
   int signal_everything = 0;
-  CmdList cmds = { .watch = 0, .next = NULL };
-  CmdList *cmd = &cmds;
+  Cmd *cmds;
   int n_watch_cmds = 1;
+  int n_cmds = 1;
 
   {
     char **cmd_end = argv + argc;
@@ -201,8 +196,14 @@ int main(int argc, char *argv[]) {
         break;
     }
 
-    cmd->args = arg_it;
-    cmd->watch = wait_on_command;
+    for (char **i = arg_it; i < cmd_end; ++i) {
+      if (! strcmp(*i, SEP))
+        ++n_cmds;
+    }
+
+    cmds = calloc(n_cmds, sizeof(Cmd));
+    cmds[0] = (Cmd) { .watch = 1, .args = arg_it };
+    int cmd_idx = 0;
 
     for (; arg_it < cmd_end; ++arg_it) {
       if (! strcmp(*arg_it, SEP)) {
@@ -215,9 +216,7 @@ int main(int argc, char *argv[]) {
 
         wait_on_command = wait_on_all_commands;
 
-        cmd->next = malloc(sizeof(CmdList));
-        cmd = cmd->next;
-        MEMCPY_LIT(cmd, CmdList, { .args = arg_it + 1, .watch =  wait_on_command, .next = NULL });
+        cmds[++cmd_idx] = (Cmd) { .args = arg_it + 1, .watch =  wait_on_command };
         if (wait_on_command)
           ++n_watch_cmds;
       }
@@ -225,7 +224,7 @@ int main(int argc, char *argv[]) {
   }
 
   pid_t *watch_pids = calloc(n_watch_cmds, sizeof(pid_t));
-  run_cmds(&cmds, watch_pids);
+  run_cmds(n_cmds, cmds, watch_pids);
   int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_pids);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
