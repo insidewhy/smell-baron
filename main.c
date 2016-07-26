@@ -171,6 +171,9 @@ static int run_cmds(CmdList *cmds, pid_t *watch_pids) {
   return n_cmds;
 }
 
+
+#define MEMCPY_LIT(var, type, ...) memcpy(var, &(type) __VA_ARGS__, sizeof(type))
+
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     fprintf(stderr, "please supply at least one command to run\n");
@@ -216,11 +219,7 @@ int main(int argc, char *argv[]) {
 
         cmd->next = malloc(sizeof(CmdList));
         cmd = cmd->next;
-        memcpy(
-          cmd,
-          &(CmdList) { .args = arg_it + 1, .watch =  wait_on_command, .next = NULL },
-          sizeof(CmdList)
-        );
+        MEMCPY_LIT(cmd, CmdList, { .args = arg_it + 1, .watch =  wait_on_command, .next = NULL });
       }
     }
   }
