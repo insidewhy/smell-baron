@@ -10,7 +10,6 @@
 #include <limits.h>
 
 #define WAIT_FOR_PROC_DEATH_TIMEOUT 10
-#define MAX_CMDS 16
 #define SEP      "---"
 
 
@@ -160,15 +159,14 @@ typedef struct _CmdList {
   struct _CmdList *next;
 } CmdList;
 
-static int run_cmds(CmdList *cmds, pid_t *watch_pids) {
-  int n_cmds = 0;
+static void run_cmds(CmdList *cmds, pid_t *watch_pids) {
+  int cmd_it = 0;
   for (; cmds; cmds = cmds->next) {
     if (cmds->watch)
-      watch_pids[n_cmds++] = run_proc(cmds->args);
+      watch_pids[cmd_it++] = run_proc(cmds->args);
     else
       run_proc(cmds->args);
   }
-  return n_cmds;
 }
 
 
@@ -182,10 +180,10 @@ int main(int argc, char *argv[]) {
 
   install_term_and_int_handlers();
 
-  pid_t watch_pids[MAX_CMDS];
   int signal_everything = 0;
   CmdList cmds = { .watch = 0, .next = NULL };
   CmdList *cmd = &cmds;
+  int n_watch_cmds = 1;
 
   {
     char **cmd_end = argv + argc;
@@ -220,12 +218,15 @@ int main(int argc, char *argv[]) {
         cmd->next = malloc(sizeof(CmdList));
         cmd = cmd->next;
         MEMCPY_LIT(cmd, CmdList, { .args = arg_it + 1, .watch =  wait_on_command, .next = NULL });
+        if (wait_on_command)
+          ++n_watch_cmds;
       }
     }
   }
 
-  int n_cmds = run_cmds(&cmds, watch_pids);
-  int error_code = wait_for_requested_commands_to_exit(n_cmds, watch_pids);
+  pid_t *watch_pids = calloc(n_watch_cmds, sizeof(pid_t));
+  run_cmds(&cmds, watch_pids);
+  int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_pids);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   kill(signal_everything ? -1 : 0, SIGTERM);
