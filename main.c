@@ -149,6 +149,28 @@ static void remove_term_and_int_handlers() {
     return;
 }
 
+typedef struct _CmdList {
+  /* args that form command, sent to execvp */
+  char **args;
+
+  /* 1 to watch, 0 to just run the command: see -f */
+  int watch;
+
+  /* next command or null */
+  struct _CmdList *next;
+} CmdList;
+
+static int run_cmds(CmdList *cmds, pid_t *watch_pids) {
+  int n_cmds = 0;
+  for (; cmds; cmds = cmds->next) {
+    if (cmds->watch)
+      watch_pids[n_cmds++] = run_proc(cmds->args);
+    else
+      run_proc(cmds->args);
+  }
+  return n_cmds;
+}
+
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     fprintf(stderr, "please supply at least one command to run\n");
@@ -157,9 +179,11 @@ int main(int argc, char *argv[]) {
 
   install_term_and_int_handlers();
 
-  pid_t cmds[MAX_CMDS];
+  pid_t watch_pids[MAX_CMDS];
   int signal_everything = 0;
-  int n_cmds = 0;
+  CmdList cmds = { .watch = 0, .next = NULL };
+  CmdList *cmd = &cmds;
+
   {
     char **cmd_end = argv + argc;
     char **arg_it = argv + 1;
@@ -176,32 +200,33 @@ int main(int argc, char *argv[]) {
         break;
     }
 
-    char **cmd_begin = arg_it;
+    cmd->args = arg_it;
+    cmd->watch = wait_on_command;
 
     for (; arg_it < cmd_end; ++arg_it) {
       if (! strcmp(*arg_it, SEP)) {
         *arg_it = 0; // replace with null to terminate when passed to execvp
-        if (wait_on_command)
-          cmds[n_cmds++] = run_proc(cmd_begin);
-        else
-          run_proc(cmd_begin);
 
-        cmd_begin = arg_it + 1;
+        if (arg_it + 1 == cmd_end) {
+          fprintf(stderr, "command must follow `---'\n");
+          exit(1);
+        }
+
         wait_on_command = wait_on_all_commands;
+
+        cmd->next = malloc(sizeof(CmdList));
+        cmd = cmd->next;
+        memcpy(
+          cmd,
+          &(CmdList) { .args = arg_it + 1, .watch =  wait_on_command, .next = NULL },
+          sizeof(CmdList)
+        );
       }
-    }
-
-    if (cmd_begin < cmd_end) {
-      if (wait_on_command)
-        cmds[n_cmds++] = run_proc(cmd_begin);
-      else
-        run_proc(cmd_begin);
-
-      wait_on_command = wait_on_all_commands;
     }
   }
 
-  int error_code = wait_for_requested_commands_to_exit(n_cmds, cmds);
+  int n_cmds = run_cmds(&cmds, watch_pids);
+  int error_code = wait_for_requested_commands_to_exit(n_cmds, watch_pids);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   kill(signal_everything ? -1 : 0, SIGTERM);
