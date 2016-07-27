@@ -166,12 +166,10 @@ static void run_cmds(int n_cmds, Cmd *cmds) {
     cmds[i].pid = run_proc(cmds[i].args);
 }
 
-static Opts parse_cmd_args(char **arg_it, char **args_end, Cmd *cmd) {
-  int signal_everything = 0;
-
+static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end) {
   for (; arg_it < args_end; ++arg_it) {
     if (! strcmp(*arg_it, "-a"))
-      signal_everything = 1;
+      opts->signal_everything = 1;
     else if (! strcmp(*arg_it, "-f"))
       cmd->watch = 1;
     else
@@ -179,7 +177,6 @@ static Opts parse_cmd_args(char **arg_it, char **args_end, Cmd *cmd) {
   }
 
   cmd->args = arg_it;
-  return (Opts) { .signal_everything = signal_everything };
 }
 
 int main(int argc, char *argv[]) {
@@ -204,7 +201,8 @@ int main(int argc, char *argv[]) {
     }
 
     cmds = calloc(n_cmds, sizeof(Cmd));
-    opts = (Opts) parse_cmd_args(argv + 1, args_end, cmds);
+    opts = (Opts) { .signal_everything = 0 };
+    parse_cmd_args(&opts, cmds, argv + 1, args_end);
     if (cmds->watch)
       ++n_watch_cmds;
 
@@ -220,7 +218,7 @@ int main(int argc, char *argv[]) {
           exit(1);
         }
 
-        opts = (Opts) parse_cmd_args(arg_it + 1, args_end, cmds + (++cmd_idx));
+        parse_cmd_args(&opts, cmds + (++cmd_idx), arg_it + 1, args_end);
         Cmd *cmd = cmds + cmd_idx;
         if (cmd->watch)
           ++n_watch_cmds;
