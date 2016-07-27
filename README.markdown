@@ -72,4 +72,4 @@ When `-f` is used then only the processes marked with `-f` will be watched, any 
 
 ## Cleaning up
 
-After `smell-baron`'s supervised processes have exited it uses `kill(0, SIGTERM)` to kill remaining processes. This sends a kill signal to every process in the same process group. Some processes create processes in new process groups and then fail to terminate them when they are killed. The `-a` flag can be used to kill all reachable processes (by using `kill(-1, SIGTERM)`). It is not advisable to use this outside of a container.
+After `smell-baron`'s supervised processes have exited it uses `kill(0, SIGTERM)` to kill remaining processes. This sends a kill signal to every process in the same process group. Some processes create processes in new process groups and then fail to terminate them when they are killed. The `-a` flag can be used to kill all reachable processes (by using `kill(-1, SIGTERM)`). This process can only be used from the init process (a process with pid 1).

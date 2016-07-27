@@ -168,12 +168,19 @@ static void run_cmds(int n_cmds, Cmd *cmds) {
 
 static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end) {
   for (; arg_it < args_end; ++arg_it) {
-    if (! strcmp(*arg_it, "-a"))
+    if (! strcmp(*arg_it, "-a")) {
+      if (getpid() != 1) {
+        fprintf(stderr, "-a can only be used from the init process (a process with pid 1)\n");
+        exit(1);
+      }
       opts->signal_everything = 1;
-    else if (! strcmp(*arg_it, "-f"))
+    }
+    else if (! strcmp(*arg_it, "-f")) {
       cmd->watch = 1;
-    else
+    }
+    else {
       break;
+    }
   }
 
   cmd->args = arg_it;
