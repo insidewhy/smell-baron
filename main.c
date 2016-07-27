@@ -17,8 +17,19 @@
 // used as boolean by signal handlers to tell process it should exit
 static volatile int running = 1;
 
-static int wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
-  int cmds_left = n_cmds;
+typedef struct {
+  /* args that form command, sent to execvp */
+  char **args;
+
+  /* 1 to watch, 0 to just run the command: see -f */
+  int watch;
+
+  pid_t pid;
+} Cmd;
+
+
+static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmds) {
+  int cmds_left = n_watch_cmds;
   int error_code = 0;
   int error_code_idx = INT_MAX;
 
@@ -42,9 +53,9 @@ static int wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
     if (! running) return error_code;
 
     // check for pid in list of child pids
-    for (int i = 0; i < n_cmds; ++i) {
+    for (int i = 0; i < n_watch_cmds; ++i) {
 
-      if (pids[i] == waited_pid) {
+      if (watch_cmds[i]->pid == waited_pid) {
         if (WIFEXITED(status)) {
           int exit_status = WEXITSTATUS(status);
 #         ifndef NDEBUG
@@ -69,7 +80,7 @@ static int wait_for_requested_commands_to_exit(int n_cmds, pid_t *pids) {
         break;
       }
 #     ifndef NDEBUG
-      else if (i == n_cmds - 1) {
+      else if (i == n_watch_cmds - 1) {
         fprintf(stderr, "process exit: %d not in command list", waited_pid);
       }
 #     endif
@@ -148,22 +159,9 @@ static void remove_term_and_int_handlers() {
     return;
 }
 
-typedef struct {
-  /* args that form command, sent to execvp */
-  char **args;
-
-  /* 1 to watch, 0 to just run the command: see -f */
-  int watch;
-} Cmd;
-
-static void run_cmds(int n_cmds, Cmd *cmds, pid_t *watch_pids) {
-  int cmd_it = 0;
-  for (int i = 0; i < n_cmds; ++i) {
-    if (cmds[i].watch)
-      watch_pids[cmd_it++] = run_proc(cmds[i].args);
-    else
-      run_proc(cmds[i].args);
-  }
+static void run_cmds(int n_cmds, Cmd *cmds) {
+  for (int i = 0; i < n_cmds; ++i)
+    cmds[i].pid = run_proc(cmds[i].args);
 }
 
 
@@ -223,9 +221,17 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  pid_t *watch_pids = calloc(n_watch_cmds, sizeof(pid_t));
-  run_cmds(n_cmds, cmds, watch_pids);
-  int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_pids);
+  Cmd **watch_cmds = calloc(n_watch_cmds, sizeof(Cmd **));
+  {
+    int watch_cmd_end = 0;
+    for (int i = 0; i < n_cmds; ++i) {
+      if (cmds[i].watch)
+        watch_cmds[watch_cmd_end++] = cmds + i;
+    }
+  }
+
+  run_cmds(n_cmds, cmds);
+  int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_cmds);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
   kill(signal_everything ? -1 : 0, SIGTERM);
