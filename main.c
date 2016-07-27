@@ -12,7 +12,6 @@
 #define WAIT_FOR_PROC_DEATH_TIMEOUT 10
 #define SEP      "---"
 
-
 // TODO: sig_atomic_t (although it is typedefd to int :P)
 // used as boolean by signal handlers to tell process it should exit
 static volatile int running = 1;
@@ -27,6 +26,9 @@ typedef struct {
   pid_t pid;
 } Cmd;
 
+typedef struct {
+  int signal_everything;
+} Opts;
 
 static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmds) {
   int cmds_left = n_watch_cmds;
@@ -81,7 +83,7 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
       }
 #     ifndef NDEBUG
       else if (i == n_watch_cmds - 1) {
-        fprintf(stderr, "process exit: %d not in command list", waited_pid);
+        fprintf(stderr, "process exit: %d not in watched commands list\n", waited_pid);
       }
 #     endif
     }
@@ -164,6 +166,21 @@ static void run_cmds(int n_cmds, Cmd *cmds) {
     cmds[i].pid = run_proc(cmds[i].args);
 }
 
+static Opts parse_cmd_args(char **arg_it, char **args_end, Cmd *cmd) {
+  int signal_everything = 0;
+
+  for (; arg_it < args_end; ++arg_it) {
+    if (! strcmp(*arg_it, "-a"))
+      signal_everything = 1;
+    else if (! strcmp(*arg_it, "-f"))
+      cmd->watch = 1;
+    else
+      break;
+  }
+
+  cmd->args = arg_it;
+  return (Opts) { .signal_everything = signal_everything };
+}
 
 int main(int argc, char *argv[]) {
   if (argc == 1) {
@@ -173,52 +190,50 @@ int main(int argc, char *argv[]) {
 
   install_term_and_int_handlers();
 
-  int signal_everything = 0;
   Cmd *cmds;
-  int n_watch_cmds = 1;
+  Opts opts;
+  int n_watch_cmds = 0;
   int n_cmds = 1;
 
   {
-    char **cmd_end = argv + argc;
-    char **arg_it = argv + 1;
+    char **args_end = argv + argc;
 
-    int wait_on_command = 1;
-    int wait_on_all_commands = 1;
-
-    for (; arg_it < cmd_end; ++arg_it) {
-      if (! strcmp(*arg_it, "-a"))
-        signal_everything = 1;
-      else if (! strcmp(*arg_it, "-f"))
-        wait_on_all_commands = 0;
-      else
-        break;
-    }
-
-    for (char **i = arg_it; i < cmd_end; ++i) {
+    for (char **i = argv + 1; i < args_end; ++i) {
       if (! strcmp(*i, SEP))
         ++n_cmds;
     }
 
     cmds = calloc(n_cmds, sizeof(Cmd));
-    cmds[0] = (Cmd) { .watch = 1, .args = arg_it };
-    int cmd_idx = 0;
+    opts = (Opts) parse_cmd_args(argv + 1, args_end, cmds);
+    if (cmds->watch)
+      ++n_watch_cmds;
 
-    for (; arg_it < cmd_end; ++arg_it) {
+    char **arg_it = cmds->args;
+
+    int cmd_idx = 0;
+    for (; arg_it < args_end; ++arg_it) {
       if (! strcmp(*arg_it, SEP)) {
         *arg_it = 0; // replace with null to terminate when passed to execvp
 
-        if (arg_it + 1 == cmd_end) {
+        if (arg_it + 1 == args_end) {
           fprintf(stderr, "command must follow `---'\n");
           exit(1);
         }
 
-        wait_on_command = wait_on_all_commands;
-
-        cmds[++cmd_idx] = (Cmd) { .args = arg_it + 1, .watch =  wait_on_command };
-        if (wait_on_command)
+        opts = (Opts) parse_cmd_args(arg_it + 1, args_end, cmds + (++cmd_idx));
+        Cmd *cmd = cmds + cmd_idx;
+        if (cmd->watch)
           ++n_watch_cmds;
+        arg_it = cmd->args - 1;
       }
     }
+  }
+
+  // if -f hasn't been used then watch every command
+  if (0 == n_watch_cmds) {
+    n_watch_cmds = n_cmds;
+    for (int i = 0; i < n_cmds; ++i)
+      cmds[i].watch = 1;
   }
 
   Cmd **watch_cmds = calloc(n_watch_cmds, sizeof(Cmd **));
@@ -234,7 +249,7 @@ int main(int argc, char *argv[]) {
   int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_cmds);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
-  kill(signal_everything ? -1 : 0, SIGTERM);
+  kill(opts.signal_everything ? -1 : 0, SIGTERM);
   wait_for_all_processes_to_exit(error_code);
 
 # ifndef NDEBUG

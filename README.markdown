@@ -68,7 +68,7 @@ This behaviour can be altered with the `-f` command-line argument:
 smell-baron -f sleep 1 --- sleep 2
 ```
 
-When `-f` is used then the remaining processes will be killed with `SIGTERM` after the process specified first exits. In the above example `sleep 2` would be killed after one second.
+When `-f` is used then only the processes marked with `-f` will be watched, any other processes will be killed with `SIGTERM` after the watched process(es) have exited. In the above example `sleep 2` would be killed after one second. `-f` can be used many times and not specifying it is the same as specifying it before every command.
 
 ## Cleaning up
 
