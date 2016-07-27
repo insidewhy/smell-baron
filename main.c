@@ -167,23 +167,23 @@ static void run_cmds(int n_cmds, Cmd *cmds) {
 }
 
 static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end) {
-  for (; arg_it < args_end; ++arg_it) {
-    if (! strcmp(*arg_it, "-a")) {
-      if (getpid() != 1) {
-        fprintf(stderr, "-a can only be used from the init process (a process with pid 1)\n");
-        exit(1);
-      }
-      opts->signal_everything = 1;
-    }
-    else if (! strcmp(*arg_it, "-f")) {
-      cmd->watch = 1;
-    }
-    else {
-      break;
+  int c;
+  optind = 1; // reset global used as pointer by getopt
+  while ((c = getopt(args_end - arg_it, arg_it - 1, "+af")) != -1) {
+    switch(c) {
+      case 'a':
+        if (getpid() != 1) {
+          fprintf(stderr, "-a can only be used from the init process (a process with pid 1)\n");
+          exit(1);
+        }
+        opts->signal_everything = 1;
+        break;
+
+      case 'f':
+        cmd->watch = 1;
     }
   }
-
-  cmd->args = arg_it;
+  cmd->args = arg_it + optind - 1;
 }
 
 int main(int argc, char *argv[]) {
