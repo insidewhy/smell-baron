@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <signal.h>
 #include <limits.h>
 
@@ -21,13 +22,13 @@ typedef struct {
   char **args;
 
   /* 1 to watch, 0 to just run the command: see -f */
-  int watch;
+  bool watch;
 
   pid_t pid;
 } Cmd;
 
 typedef struct {
-  int signal_everything;
+  bool signal_everything;
 } Opts;
 
 static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmds) {
@@ -176,11 +177,11 @@ static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end)
           fprintf(stderr, "-a can only be used from the init process (a process with pid 1)\n");
           exit(1);
         }
-        opts->signal_everything = 1;
+        opts->signal_everything = true;
         break;
 
       case 'f':
-        cmd->watch = 1;
+        cmd->watch = true;
     }
   }
   cmd->args = arg_it + optind - 1;
@@ -208,7 +209,7 @@ int main(int argc, char *argv[]) {
     }
 
     cmds = calloc(n_cmds, sizeof(Cmd));
-    opts = (Opts) { .signal_everything = 0 };
+    opts = (Opts) { .signal_everything = false };
     parse_cmd_args(&opts, cmds, argv + 1, args_end);
     if (cmds->watch)
       ++n_watch_cmds;
@@ -238,7 +239,7 @@ int main(int argc, char *argv[]) {
   if (0 == n_watch_cmds) {
     n_watch_cmds = n_cmds;
     for (int i = 0; i < n_cmds; ++i)
-      cmds[i].watch = 1;
+      cmds[i].watch = true;
   }
 
   Cmd **watch_cmds = calloc(n_watch_cmds, sizeof(Cmd **));
