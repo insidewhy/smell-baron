@@ -2,3 +2,4 @@ smell-baron*
 Dockerfile*
 build-release.sh
 README.markdown
+dist
