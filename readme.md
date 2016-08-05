@@ -22,7 +22,7 @@ CMD ["/bin/node", "app.js" ]
 
  * Multiple commands can be run, smell-baron will exit when all the watched processes have exited.
  * Whether a spawned process is watched can be configured.
- * smell-baron can be told to signal all child processes on termination, this allows it to cleanly deal with processes that spawn processes in different process groups yet fail to clean them up on exit.
+ * smell-baron can be told to signal all child processes on termination, this allows it to cleanly deal with processes that spawn a subprocess in a different process group then fail to clean it up on exit.
 
 ## Running more than one process
 
