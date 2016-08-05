@@ -13,6 +13,12 @@
 #define WAIT_FOR_PROC_DEATH_TIMEOUT 10
 #define SEP      "---"
 
+#ifndef NDEBUG
+#define DEBUG_PRINT(...) fprintf(stderr, __VA_ARGS__);
+#else
+#define DEBUG_PRINT(...)
+#endif
+
 // TODO: sig_atomic_t (although it is typedefd to int :P)
 // used as boolean by signal handlers to tell process it should exit
 static volatile int running = 1;
@@ -43,14 +49,10 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
     pid_t waited_pid = waitpid(-1, &status, 0);
     if (waited_pid == -1) {
       if (errno == EINTR) {
-#       ifndef NDEBUG
-        fprintf(stderr, "waitpid interrupted by signal\n");
-#       endif
+        DEBUG_PRINT("waitpid interrupted by signal\n");
       }
       else {
-#       ifndef NDEBUG
-        fprintf(stderr, "waitpid returned unhandled error state\n");
-#       endif
+        DEBUG_PRINT("waitpid returned unhandled error state\n");
       }
     }
     if (! running) return error_code;
@@ -61,23 +63,17 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
       if (watch_cmds[i]->pid == waited_pid) {
         if (WIFEXITED(status)) {
           int exit_status = WEXITSTATUS(status);
-#         ifndef NDEBUG
-          fprintf(stderr, "process exit with status: %d \n", exit_status);
-#         endif
+          DEBUG_PRINT("process exit with status: %d \n", exit_status);
           if (exit_status != 0 && i < error_code_idx) {
             error_code = exit_status;
             error_code_idx = i;
           }
         }
 
-#       ifndef NDEBUG
-        fprintf(stderr, "process exit: %d in command list, %d left\n", waited_pid, cmds_left - 1);
-#       endif
+        DEBUG_PRINT("process exit: %d in command list, %d left\n", waited_pid, cmds_left - 1);
 
         if (--cmds_left == 0) {
-#         ifndef NDEBUG
-          fprintf(stderr, "all processes exited\n");
-#         endif
+          DEBUG_PRINT("all processes exited\n");
           return error_code;
         }
         break;
@@ -114,18 +110,12 @@ static pid_t run_proc(char **argv) {
 }
 
 static void on_signal(int signum) {
-# ifndef NDEBUG
-  // probably not safe... at least it's only in debug mode ;)
-  fprintf(stderr, "got signal %d\n", signum);
-#endif
+  DEBUG_PRINT("got signal %d\n", signum);
   running = 0;
 }
 
 static void on_alarm(int signum) {
-# ifndef NDEBUG
-  // probably not safe... at least it's only in debug mode ;)
-  fprintf(stderr, "timeout waiting for child processes to die\n");
-#endif
+  DEBUG_PRINT("timeout waiting for child processes to die\n");
   exit(alarm_exit_code);
 }
 
@@ -258,8 +248,6 @@ int main(int argc, char *argv[]) {
   kill(opts.signal_everything ? -1 : 0, SIGTERM);
   wait_for_all_processes_to_exit(error_code);
 
-# ifndef NDEBUG
-  fprintf(stderr, "all processes exited cleanly\n");
-# endif
+  DEBUG_PRINT("all processes exited cleanly\n");
   return error_code;
 }
