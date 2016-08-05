@@ -61,7 +61,7 @@ To build a debug version:
 make
 ```
 
-To build on a machine without `gcc` installed but with `docker`, `smell-baron` can be built inside of a `Centos 5` container:
+`smell-baron` can be built on a machine without `gcc` installed but with `docker` in a `Centos 5` container:
 ```
 ./build-release.sh
 ```
