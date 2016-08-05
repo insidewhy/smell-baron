@@ -19,9 +19,8 @@
 #define DEBUG_PRINT(...)
 #endif
 
-// TODO: sig_atomic_t (although it is typedefd to int :P)
 // used as boolean by signal handlers to tell process it should exit
-static volatile int running = 1;
+static volatile bool running = true;
 
 typedef struct {
   /* args that form command, sent to execvp */
@@ -109,7 +108,7 @@ static pid_t run_proc(char **argv) {
 
 static void on_signal(int signum) {
   DEBUG_PRINT("got signal %d\n", signum);
-  running = 0;
+  running = false;
 }
 
 static void on_alarm(int signum) {
