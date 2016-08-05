@@ -26,7 +26,7 @@ CMD ["/bin/node", "app.js" ]
 
 ## Running more than one process
 
-If you want to run multiple processes you can separate them with the argument `---`:
+To run more than one command separate each one with the argument `---`:
 ```
 ADD smell-baron /bin/smell-baron
 ENTRYPOINT ["/bin/smell-baron"]
@@ -51,7 +51,7 @@ After `smell-baron`'s supervised processes have exited it uses `kill(0, SIGTERM)
 
 ## Building
 
-To build a release version:
+On a machine with `gcc` installed a release version can be built with:
 ```
 make release
 ```
@@ -61,19 +61,18 @@ To build a debug version:
 make
 ```
 
-Or to build a copy against Centos5's `glibc` (so it can run on more machines) first install docker, then run this as a user with access to docker:
+To build on a machine without `gcc` installed but with `docker`, `smell-baron` can be built inside of a `Centos 5` container:
 ```
 ./build-release.sh
 ```
 
-It can also be build on alpine to link against `musl` rather than `glibc`:
+To to link against `musl` rather than `glibc` an `Alpine Linux` container can be used:
 ```
 ./build-release.sh alpine
 ```
 
-You can also get a prebuilt binary from github (but don't trust me, build it yourself):
-
+A prebuilt binary can be obtained from github:
 ```
-wget https://github.com/ohjames/smell-baron/releases/download/v0.3.0/smell-baron
+wget https://github.com/ohjames/smell-baron/releases/download/v0.4.1/smell-baron
 chmod a+x smell-baron
 ```
