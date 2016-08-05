@@ -14,7 +14,7 @@
 #define SEP      "---"
 
 #ifndef NDEBUG
-#define DEBUG_PRINT(...) fprintf(stderr, "smell-baron: " __VA_ARGS__)
+#define DEBUG_PRINT(format, ...) fprintf(stderr, "smell-baron: " format "\n", ##__VA_ARGS__)
 #else
 #define DEBUG_PRINT(...)
 #endif
@@ -48,10 +48,10 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
     pid_t waited_pid = waitpid(-1, &status, 0);
     if (waited_pid == -1) {
       if (errno == EINTR) {
-        DEBUG_PRINT("waitpid interrupted by signal\n");
+        DEBUG_PRINT("waitpid interrupted by signal");
       }
       else {
-        DEBUG_PRINT("waitpid returned unhandled error state\n");
+        DEBUG_PRINT("waitpid returned unhandled error state");
       }
     }
     if (! running) return error_code;
@@ -62,23 +62,23 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
       if (watch_cmds[i]->pid == waited_pid) {
         if (WIFEXITED(status)) {
           int exit_status = WEXITSTATUS(status);
-          DEBUG_PRINT("process exit with status: %d \n", exit_status);
+          DEBUG_PRINT("process exit with status: %d", exit_status);
           if (exit_status != 0 && i < error_code_idx) {
             error_code = exit_status;
             error_code_idx = i;
           }
         }
 
-        DEBUG_PRINT("process exit: %d in command list, %d left\n", waited_pid, cmds_left - 1);
+        DEBUG_PRINT("process exit: %d in command list, %d left", waited_pid, cmds_left - 1);
 
         if (--cmds_left == 0) {
-          DEBUG_PRINT("all processes exited\n");
+          DEBUG_PRINT("all processes exited");
           return error_code;
         }
         break;
       }
       else if (i == n_watch_cmds - 1) {
-        DEBUG_PRINT("process exit: %d not in watched commands list\n", waited_pid);
+        DEBUG_PRINT("process exit: %d not in watched commands list", waited_pid);
       }
     }
   }
@@ -107,12 +107,12 @@ static pid_t run_proc(char **argv) {
 }
 
 static void on_signal(int signum) {
-  DEBUG_PRINT("got signal %d\n", signum);
+  DEBUG_PRINT("got signal %d", signum);
   running = false;
 }
 
 static void on_alarm(int signum) {
-  DEBUG_PRINT("timeout waiting for child processes to die\n");
+  DEBUG_PRINT("timeout waiting for child processes to die");
   exit(alarm_exit_code);
 }
 
@@ -245,6 +245,6 @@ int main(int argc, char *argv[]) {
   kill(opts.signal_everything ? -1 : 0, SIGTERM);
   wait_for_all_processes_to_exit(error_code);
 
-  DEBUG_PRINT("all processes exited cleanly\n");
+  DEBUG_PRINT("all processes exited cleanly");
   return error_code;
 }
