@@ -14,7 +14,7 @@
 #define SEP      "---"
 
 #ifndef NDEBUG
-#define DEBUG_PRINT(...) fprintf(stderr, __VA_ARGS__);
+#define DEBUG_PRINT(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define DEBUG_PRINT(...)
 #endif
@@ -78,11 +78,9 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
         }
         break;
       }
-#     ifndef NDEBUG
       else if (i == n_watch_cmds - 1) {
-        fprintf(stderr, "process exit: %d not in watched commands list\n", waited_pid);
+        DEBUG_PRINT("process exit: %d not in watched commands list\n", waited_pid);
       }
-#     endif
     }
   }
 
