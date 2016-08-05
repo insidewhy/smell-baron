@@ -1,14 +1,14 @@
 # A tiny init for docker containers written in C
 
-Hey maybe your Docker file contains something like this:
+If your Dockerfile contains something like this:
 
 ```
 CMD ["/bin/node", "app.js"]
 ```
 
-Oh no [this is no good!](https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/) - TLDR: Your process can get shutdown in a bad way and *zombie processes* will eat your container!
+This can lead to [some undesirable consequences](https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/) - in short: your process can get shutdown in a bad way and *zombie processes* will pile up.
 
-Instead just use `smell-baron` and change your `Dockerfile` to:
+To solve this you can use `smell-baron` and change your `Dockerfile` to:
 
 ```
 ADD smell-baron /bin/smell-baron
@@ -16,9 +16,13 @@ ENTRYPOINT ["/bin/smell-baron"]
 CMD ["/bin/node", "app.js" ]
 ```
 
-Now you don't have to worry anymore!
+`smell-baron` is written in `c`, it needs no dependencies on the host machine and consumes almost no resources.
 
-`smell-baron` is written in `c` so you don't need anything installed in the host machine to use the binary and it consumes almost no resources.
+`smell-baron` supplies some extra features:
+
+ * Multiple commands can be run, smell-baron will exit when all the watched processes have exited.
+ * Whether a spawned process is watched can be configured.
+ * Smell-baron can be told to signal all child processes on termination, this allows it to cleanly deal with processes that spawn processes in different process groups yet fail to clean them up on exit.
 
 ## Building
 
