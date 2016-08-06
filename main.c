@@ -33,6 +33,14 @@ typedef struct {
 } Cmd;
 
 typedef struct {
+  /* number of commands to run */
+  int n_cmds;
+
+  /* all commands (watched and unwatched) */
+  Cmd *cmds;
+} ChildProcs;
+
+typedef struct {
   bool signal_everything;
 } Opts;
 
@@ -58,7 +66,6 @@ static int wait_for_requested_commands_to_exit(int n_watch_cmds, Cmd **watch_cmd
 
     // check for pid in list of child pids
     for (int i = 0; i < n_watch_cmds; ++i) {
-
       if (watch_cmds[i]->pid == waited_pid) {
         if (WIFEXITED(status)) {
           int exit_status = WEXITSTATUS(status);
@@ -174,71 +181,73 @@ static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end)
   cmd->args = arg_it + optind - 1;
 }
 
+static void parse_argv(ChildProcs *child_procs, Opts *opts, int argc, char *argv[]) {
+  child_procs->n_cmds = 1;
+
+  char **args_end = argv + argc;
+
+  for (char **i = argv + 1; i < args_end; ++i) {
+    if (! strcmp(*i, SEP))
+      ++child_procs->n_cmds;
+  }
+
+  child_procs->cmds = calloc(child_procs->n_cmds, sizeof(Cmd));
+  *opts = (Opts) { .signal_everything = false };
+  parse_cmd_args(opts, child_procs->cmds, argv + 1, args_end);
+
+  char **arg_it = child_procs->cmds->args;
+
+  int cmd_idx = 0;
+  for (; arg_it < args_end; ++arg_it) {
+    if (! strcmp(*arg_it, SEP)) {
+      *arg_it = 0; // replace with null to terminate when passed to execvp
+
+      if (arg_it + 1 == args_end) {
+        fprintf(stderr, "command must follow `---'\n");
+        exit(1);
+      }
+
+      parse_cmd_args(opts, child_procs->cmds + (++cmd_idx), arg_it + 1, args_end);
+      Cmd *cmd = child_procs->cmds + cmd_idx;
+      arg_it = cmd->args - 1;
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     fprintf(stderr, "please supply at least one command to run\n");
     return 1;
   }
 
-  install_term_and_int_handlers();
-
-  Cmd *cmds;
+  ChildProcs child_procs;
   Opts opts;
+  parse_argv(&child_procs, &opts, argc, argv);
+
   int n_watch_cmds = 0;
-  int n_cmds = 1;
-
-  {
-    char **args_end = argv + argc;
-
-    for (char **i = argv + 1; i < args_end; ++i) {
-      if (! strcmp(*i, SEP))
-        ++n_cmds;
-    }
-
-    cmds = calloc(n_cmds, sizeof(Cmd));
-    opts = (Opts) { .signal_everything = false };
-    parse_cmd_args(&opts, cmds, argv + 1, args_end);
-    if (cmds->watch)
+  for (int i = 0; i < child_procs.n_cmds; ++i)  {
+    if (child_procs.cmds[i].watch)
       ++n_watch_cmds;
-
-    char **arg_it = cmds->args;
-
-    int cmd_idx = 0;
-    for (; arg_it < args_end; ++arg_it) {
-      if (! strcmp(*arg_it, SEP)) {
-        *arg_it = 0; // replace with null to terminate when passed to execvp
-
-        if (arg_it + 1 == args_end) {
-          fprintf(stderr, "command must follow `---'\n");
-          exit(1);
-        }
-
-        parse_cmd_args(&opts, cmds + (++cmd_idx), arg_it + 1, args_end);
-        Cmd *cmd = cmds + cmd_idx;
-        if (cmd->watch)
-          ++n_watch_cmds;
-        arg_it = cmd->args - 1;
-      }
-    }
   }
 
   // if -f hasn't been used then watch every command
   if (0 == n_watch_cmds) {
-    n_watch_cmds = n_cmds;
-    for (int i = 0; i < n_cmds; ++i)
-      cmds[i].watch = true;
+    n_watch_cmds = child_procs.n_cmds;
+    for (int i = 0; i < child_procs.n_cmds; ++i)
+      child_procs.cmds[i].watch = true;
   }
 
-  Cmd **watch_cmds = calloc(n_watch_cmds, sizeof(Cmd **));
+  Cmd **watch_cmds = calloc(n_watch_cmds, sizeof(Cmd *));
   {
     int watch_cmd_end = 0;
-    for (int i = 0; i < n_cmds; ++i) {
-      if (cmds[i].watch)
-        watch_cmds[watch_cmd_end++] = cmds + i;
+    for (int i = 0; i < child_procs.n_cmds; ++i) {
+      if (child_procs.cmds[i].watch)
+        watch_cmds[watch_cmd_end++] = child_procs.cmds + i;
     }
   }
 
-  run_cmds(n_cmds, cmds);
+  install_term_and_int_handlers();
+  run_cmds(child_procs.n_cmds, child_procs.cmds);
   int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_cmds);
   remove_term_and_int_handlers();
   alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
