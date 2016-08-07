@@ -7,7 +7,7 @@ case $version in
     ;;
 esac
 
-dockerfile=Dockerfile.$version
+dockerfile=build/Dockerfile.$version
 builddir=dist/$version
 
 if [ ! -f $dockerfile ] ; then
