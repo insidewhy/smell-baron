@@ -255,5 +255,8 @@ int main(int argc, char *argv[]) {
   wait_for_all_processes_to_exit(error_code);
 
   DPRINTF("all processes exited cleanly");
+
+  free(watch_cmds);
+  free(child_procs.cmds);
   return error_code;
 }
