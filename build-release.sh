@@ -16,7 +16,7 @@ if [ ! -f $dockerfile ] ; then
 fi
 
 docker build -f $dockerfile -t $version-smell-baron . || exit 1
-docker create $version-smell-baron || exit 1
+docker create $version-smell-baron /bin/true || exit 1
 mkdir -p $builddir
 containerid=$(docker ps -aq | head -n1)
 docker cp $containerid:/smell-baron/smell-baron $builddir
