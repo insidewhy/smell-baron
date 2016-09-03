@@ -45,6 +45,16 @@ smell-baron -f sleep 1 --- sleep 2
 
 When `-f` is used then only the processes marked with `-f` will be watched, any other processes will be killed with `SIGTERM` after the watched process(es) have exited. In the above example `sleep 2` would be killed after one second. `-f` can be used many times and not specifying it is the same as specifying it before every command.
 
+## Configuration processes
+
+`-c` can be used to mark a command as a configuring command. `smell-baron` will delay running all commands not marked with `-c` until all commands marked with `-c` have exited.
+
+```
+smell-baron -c sleep 1 --- echo hello
+```
+
+In the above example `hello` will be echoed after one second.
+
 ## Cleaning up
 
 After `smell-baron`'s supervised processes have exited it uses `kill(0, SIGTERM)` to kill remaining processes. This sends a kill signal to every process in the same process group. Some processes create processes in new process groups and then fail to terminate them when they are killed. The `-a` flag can be used to kill all reachable processes (by using `kill(-1, SIGTERM)`). This argument can only be used from the init process (a process with pid 1).
@@ -73,6 +83,6 @@ To to link against `musl` rather than `glibc` an `Alpine Linux` container can be
 
 A prebuilt binary can be obtained from github:
 ```
-wget https://github.com/ohjames/smell-baron/releases/download/v0.4.1/smell-baron
+wget https://github.com/ohjames/smell-baron/releases/download/v0.4.2/smell-baron
 chmod a+x smell-baron
 ```

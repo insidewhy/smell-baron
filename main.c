@@ -26,8 +26,11 @@ typedef struct {
   /* args that form command, sent to execvp */
   char **args;
 
-  /* 1 to watch, 0 to just run the command: see -f */
+  /* see -f */
   bool watch;
+
+  /* see -c */
+  bool configuring;
 
   pid_t pid;
 } Cmd;
@@ -156,15 +159,41 @@ static void remove_term_and_int_handlers() {
     return;
 }
 
-static void run_cmds(int n_cmds, Cmd *cmds) {
-  for (int i = 0; i < n_cmds; ++i)
+/**
+ * Runs all commands marked with -c and waits for them to exit.
+ */
+static void run_configure_cmds(int n_cmds, Cmd *cmds) {
+  int run_configure_cmds = 0;
+  for (int i = 0; i < n_cmds; ++i) {
+    if (! cmds[i].configuring)
+      continue;
+
     cmds[i].pid = run_proc(cmds[i].args);
+    ++run_configure_cmds;
+  }
+
+  if (run_configure_cmds) {
+    DPRINTF("waiting for configuration commands to exit");
+    int status;
+    for (;;) {
+      if (waitpid(-1, &status, 0) == -1 && errno == ECHILD)
+        break;
+    }
+    DPRINTF("all configuration commands have exited");
+  }
+}
+
+static void run_cmds(int n_cmds, Cmd *cmds) {
+  for (int i = 0; i < n_cmds; ++i) {
+    if (! cmds[i].configuring)
+      cmds[i].pid = run_proc(cmds[i].args);
+  }
 }
 
 static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end) {
   int c;
   optind = 1; // reset global used as pointer by getopt
-  while ((c = getopt(args_end - arg_it, arg_it - 1, "+af")) != -1) {
+  while ((c = getopt(args_end - arg_it, arg_it - 1, "+acf")) != -1) {
     switch(c) {
       case 'a':
         if (getpid() != 1) {
@@ -174,10 +203,21 @@ static void parse_cmd_args(Opts *opts, Cmd *cmd, char **arg_it, char **args_end)
         opts->signal_everything = true;
         break;
 
+      case 'c':
+        cmd->configuring = true;
+        break;
+
       case 'f':
         cmd->watch = true;
+        break;
     }
   }
+
+  if (cmd->configuring && cmd->watch) {
+    DPRINTF("cannot use -c and -w together for a single command");
+    exit(1);
+  }
+
   cmd->args = arg_it + optind - 1;
 }
 
@@ -232,9 +272,12 @@ int main(int argc, char *argv[]) {
 
   // if -f hasn't been used then watch every command
   if (0 == n_watch_cmds) {
-    n_watch_cmds = child_procs.n_cmds;
-    for (int i = 0; i < child_procs.n_cmds; ++i)
-      child_procs.cmds[i].watch = true;
+    for (int i = 0; i < child_procs.n_cmds; ++i) {
+      if (! child_procs.cmds[i].configuring) {
+        ++n_watch_cmds;
+        child_procs.cmds[i].watch = true;
+      }
+    }
   }
 
   Cmd **watch_cmds = calloc(n_watch_cmds, sizeof(Cmd *));
@@ -247,14 +290,20 @@ int main(int argc, char *argv[]) {
   }
 
   install_term_and_int_handlers();
-  run_cmds(child_procs.n_cmds, child_procs.cmds);
-  int error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_cmds);
-  remove_term_and_int_handlers();
-  alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
-  kill(opts.signal_everything ? -1 : 0, SIGTERM);
-  wait_for_all_processes_to_exit(error_code);
 
-  DPRINTF("all processes exited cleanly");
+  int error_code;
+  run_configure_cmds(child_procs.n_cmds, child_procs.cmds);
+
+  if (running) {
+    run_cmds(child_procs.n_cmds, child_procs.cmds);
+    error_code = wait_for_requested_commands_to_exit(n_watch_cmds, watch_cmds);
+    remove_term_and_int_handlers();
+    alarm(WAIT_FOR_PROC_DEATH_TIMEOUT);
+    kill(opts.signal_everything ? -1 : 0, SIGTERM);
+    wait_for_all_processes_to_exit(error_code);
+
+    DPRINTF("all processes exited cleanly");
+  }
 
   free(watch_cmds);
   free(child_procs.cmds);
